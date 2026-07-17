@@ -32,6 +32,7 @@ const App: React.FC = () => {
   const [resumen, setResumen] = useState<ResumenMes[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  const [error, setError] = useState<string | null>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
   const summaryRef = useRef<HTMLElement>(null);
 
@@ -52,18 +53,19 @@ const App: React.FC = () => {
   }, [year, month, view]);
 
   const fetchData = async () => {
+    setError(null);
     try {
       const numDays = new Date(year, month, 0).getDate();
       const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
       const endOfMonth = `${year}-${String(month).padStart(2, '0')}-${String(numDays).padStart(2, '0')}`;
 
-      const { data: dbDaysList, error } = await supabase
+      const { data: dbDaysList, error: dbError } = await supabase
         .from('dias')
         .select('*')
         .gte('fecha', startOfMonth)
         .lte('fecha', endOfMonth);
 
-      if (error) throw error;
+      if (dbError) throw dbError;
 
       const dbDays: { [key: string]: any } = {};
       if (dbDaysList) {
@@ -120,23 +122,25 @@ const App: React.FC = () => {
         max_horas_libres: Number(max_libres_horas.toFixed(2)),
         dos_tercios_jornada: Number(dos_tercios_horas.toFixed(2))
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error al obtener datos", err);
+      setError("Error al conectar con Supabase. Asegúrate de haber creado la tabla 'dias' y configurado el archivo '.env' correctamente. Detalles: " + (err.message || String(err)));
     }
   };
 
   const fetchResumen = async () => {
+    setError(null);
     try {
       const startOfYear = `${year}-01-01`;
       const endOfYear = `${year}-12-31`;
 
-      const { data: dbDaysList, error } = await supabase
+      const { data: dbDaysList, error: dbError } = await supabase
         .from('dias')
         .select('*')
         .gte('fecha', startOfYear)
         .lte('fecha', endOfYear);
 
-      if (error) throw error;
+      if (dbError) throw dbError;
 
       const dbDays: { [key: string]: any } = {};
       if (dbDaysList) {
@@ -194,8 +198,9 @@ const App: React.FC = () => {
       }
 
       setResumen(res);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error al obtener resumen", err);
+      setError("Error al obtener el resumen de Supabase. Detalles: " + (err.message || String(err)));
     }
   };
 
@@ -208,7 +213,7 @@ const App: React.FC = () => {
     const horas = nextTipo === 'laborable' ? 7 : 0;
 
     try {
-      const { error } = await supabase
+      const { error: dbError } = await supabase
         .from('dias')
         .upsert({
           fecha: dia.fecha,
@@ -217,10 +222,11 @@ const App: React.FC = () => {
           comentario: dia.comentario || ''
         }, { onConflict: 'fecha' });
 
-      if (error) throw error;
+      if (dbError) throw dbError;
       fetchData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error al actualizar día", err);
+      setError("Error al actualizar el día en Supabase: " + (err.message || String(err)));
     }
   };
 
@@ -357,6 +363,23 @@ const App: React.FC = () => {
           </div>
         )}
       </header>
+
+      {error && (
+        <div style={{
+          background: '#fee2e2',
+          color: '#991b1b',
+          border: '1px solid #fca5a5',
+          padding: '1rem',
+          borderRadius: '0.5rem',
+          margin: '1rem auto',
+          maxWidth: '600px',
+          textAlign: 'center',
+          fontWeight: 'bold',
+          fontSize: '0.9rem'
+        }}>
+          ⚠️ {error}
+        </div>
+      )}
 
       {view === 'calendar' ? (
         <div ref={calendarRef} style={{ padding: '10px' }}>
