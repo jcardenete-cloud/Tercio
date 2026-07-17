@@ -1,7 +1,7 @@
 @font-face {
   font-family: 'HarmoniaSansProCyr-Cond';
-  src: url('./assets/fonts/HarmoniaSansProCyr-Cond.woff2') format('woff2'),
-    url('./assets/fonts/HarmoniaSansProCyr-Cond.woff') format('woff');
+  src: url('./fonts/HarmoniaSansProCyr-Cond.woff2') format('woff2'),
+    url('./fonts/HarmoniaSansProCyr-Cond.woff') format('woff');
   font-weight: 400;
   /* O el grosor correspondiente (e.g., 300, 500, 700) */
   font-style: normal;
