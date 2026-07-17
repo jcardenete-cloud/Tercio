@@ -42,6 +42,10 @@ body {
   transition: background-color 0.3s, color 0.3s;
 }
 
+button, input, select, textarea {
+  font-family: inherit;
+}
+
 .container {
   max-width: 1000px;
   margin: 2rem auto;
