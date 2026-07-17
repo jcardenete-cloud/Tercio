@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { supabase } from './supabaseClient';
+import { Session } from '@supabase/supabase-js';
+import Login from './Login';
 
 interface Dia {
   fecha: string;
@@ -33,11 +35,30 @@ const App: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [error, setError] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
   const summaryRef = useRef<HTMLElement>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -323,13 +344,22 @@ const App: React.FC = () => {
     return { ...r, acumulado: acumuladoDiferencia };
   });
 
+  if (!session) {
+    return <Login />;
+  }
+
   return (
     <div className="container">
       <header className="header">
         <h1>Control Horario</h1>
-        <button className="theme-toggle" onClick={toggleTheme}>
-          {theme === 'dark' ? '☀️ Modo Claro' : '🌙 Modo Oscuro'}
-        </button>
+        <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: '0.5rem' }}>
+          <button className="theme-toggle" style={{ position: 'static' }} onClick={toggleTheme}>
+            {theme === 'dark' ? '☀️ Modo Claro' : '🌙 Modo Oscuro'}
+          </button>
+          <button className="nav-btn" style={{ fontSize: '0.8rem', padding: '0.5rem 1rem', background: '#ef4444', color: 'white', border: 'none' }} onClick={handleLogout}>
+            Cerrar Sesión
+          </button>
+        </div>
 
         <div className="tabs">
           <button
