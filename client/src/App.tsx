@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { supabase } from './supabaseClient';
 
 interface Dia {
   fecha: string;
@@ -48,12 +48,78 @@ const App: React.FC = () => {
     } else {
       fetchResumen();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, month, view]);
 
   const fetchData = async () => {
     try {
-      const resp = await axios.get(`http://localhost:8000/mes/${year}/${month}`);
-      setData(resp.data);
+      const numDays = new Date(year, month, 0).getDate();
+      const startOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+      const endOfMonth = `${year}-${String(month).padStart(2, '0')}-${String(numDays).padStart(2, '0')}`;
+
+      const { data: dbDaysList, error } = await supabase
+        .from('dias')
+        .select('*')
+        .gte('fecha', startOfMonth)
+        .lte('fecha', endOfMonth);
+
+      if (error) throw error;
+
+      const dbDays: { [key: string]: any } = {};
+      if (dbDaysList) {
+        dbDaysList.forEach((d: any) => {
+          dbDays[d.fecha] = d;
+        });
+      }
+
+      const days: Dia[] = [];
+      for (let day = 1; day <= numDays; day++) {
+        const current_date = new Date(year, month - 1, day);
+        const yyyy = current_date.getFullYear();
+        const mm = String(current_date.getMonth() + 1).padStart(2, '0');
+        const dd = String(current_date.getDate()).padStart(2, '0');
+        const date_str = `${yyyy}-${mm}-${dd}`;
+        const is_weekend = current_date.getDay() === 0 || current_date.getDay() === 6;
+
+        let day_data;
+        if (date_str in dbDays) {
+          day_data = dbDays[date_str];
+        } else {
+          day_data = {
+            fecha: date_str,
+            tipo: is_weekend ? 'festivo' : 'laborable',
+            horas_reales: is_weekend ? 0 : 7,
+            comentario: ''
+          };
+        }
+
+        days.push({
+          fecha: date_str,
+          tipo: day_data.tipo,
+          horas: Number(day_data.horas_reales),
+          comentario: day_data.comentario || ''
+        });
+      }
+
+      let total_horas = 0;
+      days.forEach((d) => {
+        const parts = d.fecha.split('-');
+        const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+        if (!isWeekend && d.tipo !== 'festivo') {
+          total_horas += 7;
+        }
+      });
+
+      const max_libres_horas = total_horas / 3;
+      const dos_tercios_horas = (total_horas * 2) / 3;
+
+      setData({
+        days,
+        total_jornada_mensual: total_horas,
+        max_horas_libres: Number(max_libres_horas.toFixed(2)),
+        dos_tercios_jornada: Number(dos_tercios_horas.toFixed(2))
+      });
     } catch (err) {
       console.error("Error al obtener datos", err);
     }
@@ -61,8 +127,73 @@ const App: React.FC = () => {
 
   const fetchResumen = async () => {
     try {
-      const resp = await axios.get(`http://localhost:8000/resumen/${year}`);
-      setResumen(resp.data);
+      const startOfYear = `${year}-01-01`;
+      const endOfYear = `${year}-12-31`;
+
+      const { data: dbDaysList, error } = await supabase
+        .from('dias')
+        .select('*')
+        .gte('fecha', startOfYear)
+        .lte('fecha', endOfYear);
+
+      if (error) throw error;
+
+      const dbDays: { [key: string]: any } = {};
+      if (dbDaysList) {
+        dbDaysList.forEach((d: any) => {
+          dbDays[d.fecha] = d;
+        });
+      }
+
+      const meses_es = [
+        "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+      ];
+
+      const res: ResumenMes[] = [];
+      for (let m = 1; m <= 12; m++) {
+        const num_days = new Date(year, m, 0).getDate();
+        let jornada_total_mes = 0;
+        let horas_trabajadas = 0;
+        let horas_libres = 0;
+
+        for (let day = 1; day <= num_days; day++) {
+          const curr_date = new Date(year, m - 1, day);
+          const yyyy = curr_date.getFullYear();
+          const mm = String(curr_date.getMonth() + 1).padStart(2, '0');
+          const dd = String(curr_date.getDate()).padStart(2, '0');
+          const curr_date_str = `${yyyy}-${mm}-${dd}`;
+          const is_weekend = curr_date.getDay() === 0 || curr_date.getDay() === 6;
+
+          let tipo;
+          if (curr_date_str in dbDays) {
+            tipo = dbDays[curr_date_str].tipo;
+          } else {
+            tipo = is_weekend ? 'festivo' : 'laborable';
+          }
+
+          if (!is_weekend && tipo !== 'festivo') {
+            jornada_total_mes += 7;
+          }
+
+          if (tipo === 'laborable') {
+            horas_trabajadas += 7;
+          } else if (tipo === 'libre') {
+            horas_libres += 7;
+          }
+        }
+
+        res.push({
+          mes: meses_es[m],
+          jornada_total: jornada_total_mes,
+          dos_tercios: Number(((jornada_total_mes * 2) / 3).toFixed(2)),
+          horas_trabajadas: horas_trabajadas,
+          un_tercio: Number((jornada_total_mes / 3).toFixed(2)),
+          horas_libres: horas_libres
+        });
+      }
+
+      setResumen(res);
     } catch (err) {
       console.error("Error al obtener resumen", err);
     }
@@ -74,11 +205,19 @@ const App: React.FC = () => {
     else if (dia.tipo === 'festivo') nextTipo = 'libre';
     else nextTipo = 'laborable';
 
+    const horas = nextTipo === 'laborable' ? 7 : 0;
+
     try {
-      await axios.post('http://localhost:8000/dia', {
-        fecha: dia.fecha,
-        tipo: nextTipo
-      });
+      const { error } = await supabase
+        .from('dias')
+        .upsert({
+          fecha: dia.fecha,
+          tipo: nextTipo,
+          horas_reales: horas,
+          comentario: dia.comentario || ''
+        }, { onConflict: 'fecha' });
+
+      if (error) throw error;
       fetchData();
     } catch (err) {
       console.error("Error al actualizar día", err);

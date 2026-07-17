@@ -1,8 +1,6 @@
 @echo off
 echo Deteniendo servicios de Control Horario...
 
-:: Detener procesos de Python (Uvicorn)
-taskkill /IM python.exe /F 2>nul
 :: Detener procesos de Node/npm
 taskkill /IM node.exe /F 2>nul
 
