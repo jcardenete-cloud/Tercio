@@ -41,6 +41,7 @@ const App: React.FC = () => {
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
+  const mesNombre = currentDate.toLocaleString('es-ES', { month: 'long' });
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -65,13 +66,15 @@ const App: React.FC = () => {
   }, [theme]);
 
   useEffect(() => {
-    if (view === 'calendar') {
-      fetchData();
-    } else {
-      fetchResumen();
+    if (session) {
+      if (view === 'calendar') {
+        fetchData();
+      } else {
+        fetchResumen();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, month, view]);
+  }, [year, month, view, session]);
 
   const fetchData = async () => {
     setError(null);
@@ -333,8 +336,6 @@ const App: React.FC = () => {
       setTheme(originalTheme);
     }, 100);
   };
-
-  const mesNombre = currentDate.toLocaleString('es-ES', { month: 'long' });
 
   // Calcular acumulado
   let acumuladoDiferencia = 0;
