@@ -13,13 +13,27 @@ const Login: React.FC = () => {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        throw error;
+      if (signInError) {
+        throw signInError;
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .schema('jcf')
+        .from('app_usuarios')
+        .select('tercio')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (userError || !userData || userData.tercio !== true) {
+        await supabase.auth.signOut();
+        setEmail('');
+        setPassword('');
+        throw new Error('No tiene acceso a esta aplicación');
       }
     } catch (err: any) {
       setError(err.message || 'Error al iniciar sesión');
