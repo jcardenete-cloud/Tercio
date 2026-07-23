@@ -56,24 +56,31 @@ const App: React.FC = () => {
       setIsVerifying(true);
       try {
         const { data: userData, error: userError } = await supabase
-          .schema('jcf')
           .from('app_usuarios')
           .select('tercio')
-          .eq('email', currentSession.user.email)
+          .ilike('email', currentSession.user.email || '')
           .maybeSingle();
 
-        if (userError || !userData || userData.tercio !== true) {
+        if (userError) {
           await supabase.auth.signOut();
           setSession(null);
-          setLoginError('No tiene acceso a esta aplicación');
+          setLoginError(`Error de DB: ${userError.message}`);
+        } else if (!userData) {
+          await supabase.auth.signOut();
+          setSession(null);
+          setLoginError('No tiene acceso (Email no encontrado en app_usuarios)');
+        } else if (!userData.tercio || String(userData.tercio).toLowerCase() === 'false' || userData.tercio === 0) {
+          await supabase.auth.signOut();
+          setSession(null);
+          setLoginError('No tiene acceso a esta aplicación (Campo tercio no es válido)');
         } else {
           setLoginError(null);
           setSession(currentSession);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error verifying access", err);
         setSession(null);
-        setLoginError('Error verificando acceso');
+        setLoginError('Error verificando acceso: ' + (err?.message || 'Error desconocido'));
       } finally {
         setIsVerifying(false);
       }
