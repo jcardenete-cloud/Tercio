@@ -36,6 +36,8 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(true);
   const calendarRef = useRef<HTMLDivElement>(null);
   const summaryRef = useRef<HTMLElement>(null);
 
@@ -44,14 +46,47 @@ const App: React.FC = () => {
   const mesNombre = currentDate.toLocaleString('es-ES', { month: 'long' });
 
   useEffect(() => {
+    const handleSession = async (currentSession: Session | null) => {
+      if (!currentSession) {
+        setSession(null);
+        setIsVerifying(false);
+        return;
+      }
+
+      setIsVerifying(true);
+      try {
+        const { data: userData, error: userError } = await supabase
+          .schema('jcf')
+          .from('app_usuarios')
+          .select('tercio')
+          .eq('email', currentSession.user.email)
+          .maybeSingle();
+
+        if (userError || !userData || userData.tercio !== true) {
+          await supabase.auth.signOut();
+          setSession(null);
+          setLoginError('No tiene acceso a esta aplicación');
+        } else {
+          setLoginError(null);
+          setSession(currentSession);
+        }
+      } catch (err) {
+        console.error("Error verifying access", err);
+        setSession(null);
+        setLoginError('Error verificando acceso');
+      } finally {
+        setIsVerifying(false);
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+      handleSession(session);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+      handleSession(session);
     });
 
     return () => subscription.unsubscribe();
@@ -345,8 +380,16 @@ const App: React.FC = () => {
     return { ...r, acumulado: acumuladoDiferencia };
   });
 
+  if (isVerifying) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column' }}>
+        <h2 style={{ color: 'var(--accent)' }}>Verificando acceso...</h2>
+      </div>
+    );
+  }
+
   if (!session) {
-    return <Login />;
+    return <Login externalError={loginError} />;
   }
 
   return (

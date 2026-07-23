@@ -1,11 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 
-const Login: React.FC = () => {
+interface LoginProps {
+  externalError?: string | null;
+}
+
+const Login: React.FC<LoginProps> = ({ externalError }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(externalError || null);
+
+  useEffect(() => {
+    if (externalError) {
+      setError(externalError);
+    }
+  }, [externalError]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,23 +31,9 @@ const Login: React.FC = () => {
       if (signInError) {
         throw signInError;
       }
-
-      const { data: userData, error: userError } = await supabase
-        .schema('jcf')
-        .from('app_usuarios')
-        .select('tercio')
-        .eq('email', email)
-        .maybeSingle();
-
-      if (userError || !userData || userData.tercio !== true) {
-        await supabase.auth.signOut();
-        setEmail('');
-        setPassword('');
-        throw new Error('No tiene acceso a esta aplicación');
-      }
+      
     } catch (err: any) {
       setError(err.message || 'Error al iniciar sesión');
-    } finally {
       setLoading(false);
     }
   };
