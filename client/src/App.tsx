@@ -7,7 +7,7 @@ import Login from './Login';
 
 interface Dia {
   fecha: string;
-  tipo: 'laborable' | 'festivo' | 'libre';
+  tipo: 'laborable' | 'festivo' | 'tercio';
   horas: number;
   comentario: string;
 }
@@ -248,7 +248,7 @@ const App: React.FC = () => {
 
           if (tipo === 'laborable') {
             horas_trabajadas += 7;
-          } else if (tipo === 'libre') {
+          } else if (tipo === 'tercio') {
             horas_libres += 7;
           }
         }
@@ -273,7 +273,7 @@ const App: React.FC = () => {
   const toggleDia = async (dia: Dia) => {
     let nextTipo: Dia['tipo'] = 'laborable';
     if (dia.tipo === 'laborable') nextTipo = 'festivo';
-    else if (dia.tipo === 'festivo') nextTipo = 'libre';
+    else if (dia.tipo === 'festivo') nextTipo = 'tercio';
     else nextTipo = 'laborable';
 
     const horas = nextTipo === 'laborable' ? 7 : 0;
