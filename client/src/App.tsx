@@ -487,10 +487,10 @@ const App: React.FC = () => {
                 </div>
                 <div className="stat-card">
                   <div className="stat-label">Libres Usados</div>
-                  <div className="stat-value" style={{ color: (data.days.filter(d => d.tipo === 'libre').length * 7) > data.max_horas_libres ? '#ef4444' : '#3b82f6' }}>
-                    {data.days.filter(d => d.tipo === 'libre').length * 7}h
+                  <div className="stat-value" style={{ color: (data.days.filter(d => d.tipo === 'tercio').length * 7) > data.max_horas_libres ? '#ef4444' : '#3b82f6' }}>
+                    {data.days.filter(d => d.tipo === 'tercio').length * 7}h
                   </div>
-                  <div className="stat-sub">{data.days.filter(d => d.tipo === 'libre').length} días</div>
+                  <div className="stat-sub">{data.days.filter(d => d.tipo === 'tercio').length} días</div>
                 </div>
               </section>
 
